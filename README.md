@@ -1,6 +1,7 @@
 # TFJ-DRL-Update 1
 1) A paper replication project for *Time-driven feature-aware jointly deep reinforcement learning (TFJ-DRL) for financial signal representation and algorithmic trading*. source: https://github.com/lingfeng158/TFJ-DRL-Replication
-2) An exploritory project improving on the interpretibility of the TFJ-DRL model using XAI techniques to break open the black-box TAM-GRU segment
+2) An exploritory project improving on the interpretibility of the TFJ-DRL model using XAI techniques to break open the black-box TAM-GRU model
+
 
 ## Background (credit lingfeng158)
 * Supervised learning methods are difficult to achieve online learning, due to the cost of training. They attempt to predict stock prices of the next time point, but accuracy of price prediction results in second error propagation during translation from price prediction to trading actions.
@@ -30,10 +31,21 @@ This is commented out on the top of the notebook in `notebooks`.
 
 The code for the GRU was refactored to [backend/reinforcement_learning.py](./src/backend/reinforcement_learning.py).
 Its purpose is to extract meaningful features from the raw stock data, and it learns the feature representations via autoregression. 
-These features are then fed to a policy learning agent, which decides on the trading action at a given timestep.
+
+Deep learning TAM-GRU mechanism looks like this:
+
+![tam diagram](./diagrams/tam_diagram.png)
+
+The environment vector is fed through two feed-forward layers to produce a prediction for the stock price at time $t+1$.
+This prediction, along with the latent environment vector, are then fed to a policy-driven reinforcement learning agent which decides on the action at time $t$ by picking one of $\{buy,\ sell,\ hold\}$.
 
 Crucially, the black-box nature of this approach makes it highly unsuitable for trading with real money.
-The purpose of this update is to \"crack open" the black box by applying XAI techniques to the temporal attention mechanism at the end of the RNN model.
+With a pure RL approach, the policy can be traced directly to movements in the underlying stock price and chosen indicators.
+Similarly, a pure supervised approach which trades solely on the price prediction of $t+1$ can be monitered using the loss produced at time $t+1$ for time $t$.
+Since TFJ-DRL is a combination of these approaches, a method for interpreting the predictions of TFJ-DRL must combine these approaches as well.
+
+The purpose of this update is to \"crack open" the TFJ-DRL black box by applying XAI/interpretability techniques to the supervised learning mechanism and computing a `confusion' score.
+Plotting the confusion of the supervised learning mechanism over the utility of the RL agent, we hope to determine when TFJ-DRL will lose money *before it trades*.
 
 The original paper can be found [here](./src/ReferencePaper.pdf)
 
