@@ -164,7 +164,7 @@ class rlPolicy(nn.Module):
         return self.rnn.begin_state(device, batch_size)
 
 # Customly initialize parameters for RL model
-def get_params(env_size: int, device: torch.device):
+def get_params(env_size: int, device: torch.device) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Args:
         env_size (int): Size of the environment
