@@ -147,3 +147,6 @@ ta-lib
 
 # saved models 
 model_weights
+unit_model_weights
+model_weights
+training_pics
