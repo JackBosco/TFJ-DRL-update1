@@ -1,7 +1,9 @@
 # Common Utility Functions for training, testing, evaluating
 import torch
 from torch import nn
-
+from .stock_dataset import StockDataset
+from torch.utils.data import DataLoader
+from .technical_analysis import get_data_set
 
 #Calculate Utility based on policy Output
 #z: z from dataset
@@ -68,3 +70,29 @@ def lossFunc2(predP, y, policyOutput, z, device):
     term2=(torch.log(1*plusMinus+((-1)**plusMinus)*actionProb)*U_detach).mean()
     term3=nn.MSELoss()(policyOutput, greedyAction)
     return term3+term2+term1
+
+#Generation of training, validation, and testing dataset
+def DataIterGen(test_id_list, val_id_list, name_list, full_list, demo=False, bsize=32) -> tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    test_id_list: id of subjects for testing
+    val_id_list: id of subjects for validation
+    other subjects for training
+    full_list=get_data_set(name_list), preprocessed
+    demo: when demo mode is True, only test_iter is returned, with data from
+    first entry of test_id_list (single stock)
+    """
+    name_count=len(name_list)
+
+    if demo:
+        test_iter=DataLoader(StockDataset(test_id_list[0:1], full_list, timestep=24, gap=1), shuffle=False, batch_size=64, num_workers=0)
+        print(f'Demo with stock: {name_list[test_id_list[0]]} ')
+        return test_iter
+    else:
+        train_list=set(name_list)-set([name_list[i] for i in test_id_list])-set([name_list[i] for i in val_id_list])
+        train_count=len(train_list)
+        partial_list=get_data_set(train_list)
+        test_iter=DataLoader(StockDataset(test_id_list, full_list), batch_size=bsize, num_workers=0)
+        val_iter=DataLoader(StockDataset(val_id_list, full_list), batch_size=bsize, num_workers=0)
+        train_iter=DataLoader(StockDataset(list(range(train_count)), partial_list), shuffle=True, batch_size=bsize, num_workers=0)
+        print(f'Val: {[name_list[val_id] for val_id in val_id_list]}, Test: {[name_list[test_id] for test_id in test_id_list]}, Train: {train_list} ')
+        return train_iter, val_iter, test_iter

@@ -5,73 +5,7 @@
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import torch
-
-def toSequential(idx, full_list, timeStep=24, gap=8):
-    """
-    This function transforms given data into sequential samples with specified time steps and gaps.
-
-    Parameters:
-    idx (int): Index of the specific dataset in 'full_list' to be processed.
-    full_list (list): A list of datasets (each being a numpy array).
-    timeStep (int): Number of time steps in each sequential sample.
-    gap (int): Gap between start points of successive sequential samples.
-
-    Returns:
-    stockSeq (numpy.ndarray): Normalized sequential data samples.
-    labelSeq (numpy.ndarray): Normalized closing prices for each time step in the sequence.
-    diffSeq (numpy.ndarray): Normalized differences of closing prices between successive steps.
-    realDiffSeq (numpy.ndarray): Real differences of closing prices between successive steps (not normalized).
-    """
-    
-    # Extract the closing prices from the dataset corresponding to the provided index
-    closing = full_list[idx][:, 3]
-    
-    # Extract all data points except for the last one for processing
-    data = full_list[idx][:-1]
-    
-    # Calculate the length of the available data
-    data_length = len(data)
-    
-    # Calculate the number of sequential samples that can be created
-    count = (data_length - timeStep) // gap + 1
-    
-    # Initialize lists to store the results
-    stockSeq = []
-    labelSeq = []
-    diffSeq = []
-    realDiffSeq = []
-    
-    for i in range(count):
-        # Extract the segment of data for the current time step
-        segData = data[gap * i : gap * i + timeStep]
-        
-        # Extract the corresponding closing prices for the current time step segment + 1 for label
-        segClosing = closing[gap * i : gap * i + timeStep + 1]
-
-        # Normalize the segment data by subtracting its mean and dividing by its standard deviation
-        segDataNorm = np.nan_to_num((segData - segData.mean(axis=0, keepdims=True)) / segData.std(axis=0, keepdims=True))
-        
-        # Normalize the segment closing prices similarly
-        segClosingNorm = (segClosing - segClosing.mean()) / segClosing.std()
-        
-        # Append the normalized segment data to the stock sequence list
-        stockSeq.append(segDataNorm)
-        labelSeq.append(segClosingNorm[1:])
-        
-        # Append the normalized differences between successive closing prices to the difference sequence list
-        diffSeq.append(segClosingNorm[1:] - segClosingNorm[:-1])
-        
-        # Append the actual differences between successive closing prices to the real difference sequence list (not normalized)
-        realDiffSeq.append(segClosing[1:] - segClosing[:-1])
-    
-    # Transform the lists into numpy arrays for efficient computation
-    stockSeq = np.array(stockSeq)
-    labelSeq = np.array(labelSeq)
-    diffSeq = np.array(diffSeq)
-    realDiffSeq = np.array(realDiffSeq)
-    
-    # Return the sequences as numpy arrays with 'float32' data type for optimization
-    return stockSeq.astype('float32'), labelSeq.astype('float32'), diffSeq.astype('float32'), realDiffSeq.astype('float32')
+from .technical_analysis import toSequential
 
 class StockDataset(Dataset):
     """Custom PyTorch Dataset class for loading and processing stock data."""
