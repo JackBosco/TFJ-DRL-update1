@@ -4,17 +4,16 @@
 
 
 ## Background (credit lingfeng158)
-* Supervised learning methods are difficult to achieve online learning, due to the cost of training. They attempt to predict stock prices of the next time point, but accuracy of price prediction results in second error propagation during translation from price prediction to trading actions.
-
-* Reinforcement learning (RL) methods lacks the ability to perceive and represent environment features, as well as the ability to dynamically consider past states and changing trends. 
-
-The paper of interest (TFJ-DRL) aims to combine the strength from both deep learning and reinforcement learning by integrating Recurrent Neural Network (RNN) and policy gradient RL.
+* Supervised learning methods attempt to predict the stock price at the next time point and the trading action is inferred from that prediction. The issue with supervised learning for this application is the accuracy of price prediction results in second error propagation during translation from price prediction to trading actions. 
+* Reinforcement learning (RL) methods lack the ability to perceive and represent environment features, as well as the ability to dynamically consider past states and changing trends. This means RL will struggle to converge with a sufficiently wide context window length and number of features per stock. 
+* TFJ-DRL addresses these issues by combining supervised an reinforcement learning mechanisms in series to represent the environment and act within the environment, respectively.
 
 ## Installation
 
-**ta-lib is optional**: I saved a sample dataset for training and testing the model, so you do not need to install ta-lib. 
+The most difficult part of setting this project up is getting TA-Lib working.
+TA-Lib needs to be compiled from source before you can install the python package with pip.
+The commands to do so are:
 
-If you would like to do so anyways, on Google Colab TA-Lib needs to be seperated installed via:
 ```
 !wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
 !tar -xzvf ta-lib-0.4.0-src.tar.gz
@@ -25,7 +24,48 @@ If you would like to do so anyways, on Google Colab TA-Lib needs to be seperated
 !pip install Ta-Lib
 ```
 
-This is commented out on the top of the notebook in `notebooks`. 
+This is commented out on the top of the `full_model_demo.ipynb` notebook in `notebooks`. 
+
+# Confusion
+
+Confusion is a measurement of how *new* the environment at time $t$ is to the model. 
+
+The current implementation uses an autoencoder to encode and decode the environment vector $h'_t \in \mathbb R^{d}$ where $d$ is the environment vector dimention.
+The autoencoder looks as follows:
+```
+AutoEncoder(
+  (encoder): Sequential(
+    (0): Linear(in_features=128, out_features=32, bias=True)
+    (1): LeakyReLU(negative_slope=0.01)
+    (2): Dropout(p=0.3, inplace=False)
+    (3): Linear(in_features=32, out_features=16, bias=True)
+    (4): ReLU()
+    (5): Linear(in_features=16, out_features=2, bias=True)
+  )
+  (decoder): Sequential(
+    (0): Linear(in_features=2, out_features=16, bias=True)
+    (1): LeakyReLU(negative_slope=0.01)
+    (2): Dropout(p=0.3, inplace=False)
+    (3): Linear(in_features=16, out_features=32, bias=True)
+    (4): ReLU()
+    (5): Linear(in_features=32, out_features=128, bias=True)
+  )
+)
+```
+
+With $h''_t \in \mathbb R^{d}$ as the encoded-decoded environment vector, confusion at time $t$ is the cosine (dis)similarity:
+
+$$\text{confusion}_t = 1 - \cos (h'_t, h''_t)$$
+
+Critically, this loss is gleaned at time $t$ whereas the rest of the model recieves loss at time $t+1$. 
+We hope to see a correlation between confusion at time $t$ and the loss at time $t+1$.
+If this is the case, then confusion serves as an indicator for when the model is liable to lose money.
+
+![confusion plot](diagrams/cof_confusion.png)
+
+The above is a demonstatration of TFJ-DRL (top) and my addition (below). 
+At a given timestep, the autoencoder generates a loss score from encoding and decoding the hidden state vector. 
+Some of the peaks in confusion (ex. at around timestep 200) look promising as potential indicators of a dip in the cumulative gain.
 
 ## RNN model and Temporal Attention Mechanism definition
 
