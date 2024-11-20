@@ -29,7 +29,7 @@ def calcUtility(policyOutput, z, c=0.0001):
 def grad_clipping(net, theta): 
     """Clip the gradient."""
     if isinstance(net, nn.Module):
-        params = [p for p in net.parameters() if p.requires_grad]
+        params = [p for p in net.parameters() if p.requires_grad and p.grad is not None]
     else:
         params = net.params
     norm = torch.sqrt(sum(torch.sum((p.grad ** 2)) for p in params))
