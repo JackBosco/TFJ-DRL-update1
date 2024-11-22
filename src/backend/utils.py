@@ -11,7 +11,9 @@ from .technical_analysis import get_data_set, get_data
 def calcUtility(policyOutput, z, c=0.0001):
   #with torch.no_grad():
     discretize=policyOutput.detach()
-    discretize=(discretize>=0)*2-1
+    discretize_h=(discretize>=0.33)*1
+    discretize_l=(discretize<=-0.33)*1
+    discretize = discretize_h - discretize_l
     preAction=torch.cat([discretize[:,0:1], discretize[:, :-1]], dim=1)
     #net income R
     R=z*discretize-c*((discretize-preAction)!=0)
@@ -124,7 +126,7 @@ def DataIterGen_V2(stock_id, name_list, demo=False, gap=1,
     hcl=trainDS.getHighCorrelationList()
     if demo:
       test_iter=DataLoader(StockDataset_V2(stock_id, name_list, timestep=24, gap=gap, 
-                                        start=val_s, end=test_e,
+                                        start=test_s, end=test_e,
                                         use_external_list=True, external_list=hcl), 
                            shuffle=False, batch_size=1, num_workers=0)
       #get abs change in stock closing price:
