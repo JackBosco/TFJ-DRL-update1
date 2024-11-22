@@ -98,7 +98,7 @@ def DataIterGen(test_id_list, val_id_list, name_list, full_list, demo=False, bsi
         return train_iter, val_iter, test_iter
 
 #Generation of training, validation, and testing dataset
-def DataIterGen_V2(stock_id, name_list, demo=False, 
+def DataIterGen_V2(stock_id, name_list, demo=False, gap=1, 
                    train_range: tuple = ("2013-01-01", "2017-10-01"),
                    test_range: tuple = ("2018-01-01", "2019-01-01"),
                    val_range: tuple = ("2017-10-08", "2018-04-01")):
@@ -116,29 +116,33 @@ def DataIterGen_V2(stock_id, name_list, demo=False,
     train_s, train_e = train_range
     test_s, test_e = test_range
     val_s, val_e = val_range
+    print(f"Using periods\nTrain: {train_range}\nTest: {test_range}\nValidation: {val_range}")
+    print("Initializing Training Dataset...", end='')
     trainDS=StockDataset_V2(stock_id, name_list, start=train_s, end=train_e)
+    print("[DONE]")
     #get high correlation list for validation and testing
     hcl=trainDS.getHighCorrelationList()
-    print(f"Using periods\nTrain: {train_range}\nTest: {test_range}\nValidation: {val_range}")
     if demo:
-      test_iter=DataLoader(StockDataset_V2(stock_id, name_list, timestep=24, gap=1, 
-                                        start=test_s, end=test_e,
+      test_iter=DataLoader(StockDataset_V2(stock_id, name_list, timestep=24, gap=gap, 
+                                        start=val_s, end=test_e,
                                         use_external_list=True, external_list=hcl), 
-                           shuffle=False, batch_size=64, num_workers=0)
+                           shuffle=False, batch_size=1, num_workers=0)
       #get abs change in stock closing price:
-      data=get_data(name_list[stock_id], start=test_s, end=test_e)
+      data=get_data(name_list[stock_id], start=val_s, end=test_e)
       delta=data.iloc[-1]['Close']-data.iloc[91]['Close']
       print(f'Demo Stock ticker: {name_list[stock_id]}, change in closing price during testing period: ${delta:.2f}')
       return test_iter
     else:
-      test_iter=DataLoader(StockDataset_V2(stock_id, name_list, 
+      print("Initializing Iterators(dataloaders) From Dataset...",end='')
+      test_iter=DataLoader(StockDataset_V2(stock_id, name_list, gap=gap, 
                                         start=test_s, end=test_e,
                                         use_external_list=True, external_list=hcl),
                             batch_size=32, num_workers=0)
-      val_iter=DataLoader(StockDataset_V2(stock_id, name_list,
+      val_iter=DataLoader(StockDataset_V2(stock_id, name_list, gap=gap,
                                        start=val_s, end=val_e,
                                        use_external_list=True, external_list=hcl),
                            batch_size=32, num_workers=0)
       train_iter=DataLoader(trainDS, shuffle=True, batch_size=32, num_workers=0)
+      print("[DONE]")
       print(f'Stock ticker: {name_list[stock_id]}')
       return train_iter, val_iter, test_iter
