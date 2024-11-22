@@ -5,7 +5,7 @@
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import torch
-from .technical_analysis import toSequential
+from .technical_analysis import toSequential, toSequential_V2
 
 class StockDataset(Dataset):
     """Custom PyTorch Dataset class for loading and processing stock data."""
@@ -83,4 +83,51 @@ class StockDataset(Dataset):
         Returns:
             tuple: A tuple containing all data arrays (X, y, z, zp).
         """
+        return self.X, self.y, self.z, self.zp
+
+#input each step:  vector including [stock info, tech indicators]
+#output each step: closing price t+1, price diff between t+1 and t
+#full_list: output from get_data_set
+class StockDataset_V2(Dataset):
+    def __init__(self, stock_id, name_list, transform=None, timestep=24, gap=12,
+                 start="2017-01-01", end="2020-01-01",
+                 use_external_list=False, external_list=[]):
+        self.transform=transform
+        self.id=stock_id
+        
+        
+        #load data into cohort
+        X, y, z, zp, hcl=toSequential_V2(stock_id, name_list, timeStep=timestep, 
+                                      gap=gap, start=start, end=end, 
+                                      use_external_list=use_external_list, 
+                                      external_list=external_list)
+
+        self.X=X
+        self.y=y  
+        self.z=z  
+        self.zp=zp
+        self.high_correlation_list=hcl
+        
+    def __len__(self):
+        return len(self.y)
+    
+    def __getitem__(self, idx):
+        """
+        data returned in the format of 
+        """
+        if torch.is_tensor(idx):
+            idx=idx.tolist()
+        
+        data=self.X[idx]
+        label1=self.y[idx]
+        label2=self.z[idx]
+        label3=self.zp[idx]
+        if self.transform:
+            data=self.transform(data)
+        return (data, label1, label2, label3)
+    
+    def getHighCorrelationList(self):
+        return self.high_correlation_list
+
+    def getDS(self):
         return self.X, self.y, self.z, self.zp
