@@ -131,3 +131,41 @@ class StockDataset_V2(Dataset):
 
     def getDS(self):
         return self.X, self.y, self.z, self.zp
+    
+#input each step:  vector including [stock info, tech indicators]
+#output each step: closing price t+1, price diff between t+1 and t
+#full_list: output from get_data_set
+class StockDataset_V3(Dataset):
+    def __init__(self, X, y, z, zp, hcl, stock_id, transform=None):
+                 
+        self.transform=transform
+        self.id=stock_id
+        self.X=X
+        self.y=y  
+        self.z=z  
+        self.zp=zp
+        self.high_correlation_list=hcl
+        
+    def __len__(self):
+        return len(self.y)
+    
+    def __getitem__(self, idx):
+        """
+        data returned in the format of 
+        """
+        if torch.is_tensor(idx):
+            idx=idx.tolist()
+        
+        data=self.X[idx]
+        label1=self.y[idx]
+        label2=self.z[idx]
+        label3=self.zp[idx]
+        if self.transform:
+            data=self.transform(data)
+        return (data, label1, label2, label3)
+    
+    def getHighCorrelationList(self):
+        return self.high_correlation_list
+
+    def getDS(self):
+        return self.X, self.y, self.z, self.zp
