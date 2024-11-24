@@ -153,6 +153,7 @@ def get_data_set(name_list: list[str], start="2017-01-01", end="2020-01-01", ver
     
     return np.array(data_list)
 
+# Function to transform data into sequential samples with specified time steps and gaps.
 def toSequential(idx, full_list, timeStep=24, gap=8):
     """
     This function transforms given data into sequential samples with specified time steps and gaps.
@@ -220,68 +221,70 @@ def toSequential(idx, full_list, timeStep=24, gap=8):
     # Return the sequences as numpy arrays with 'float32' data type for optimization
     return stockSeq.astype('float32'), labelSeq.astype('float32'), diffSeq.astype('float32'), realDiffSeq.astype('float32')
 
-#download data of stocks given stock tickers and time frame
-#data_list: an array of stock data with features
-#high_correlation_list: id of stocks in data_list with high correlation with stock of interest
+# Function to download data of stocks given stock tickers and time frame
+# data_list: an array of stock data with features
+# high_correlation_list: id of stocks in data_list with high correlation with stock of interest
 def get_data_set_V2(stock_id, name_list, start="2017-01-01", end="2020-01-01"):
     data_list=[]
     for name in name_list:
         data_list.append(calc_tech_ind(get_data(name, start, end)).iloc[90:].fillna(0).values)
         
-    #get number of original
-    feature_count=data_list[0].shape[1]
-    #calculate cointegration
-    high_correlation_list=[]
+    # Get number of original features from the dataset
+    feature_count = data_list[0].shape[1]
+    # Calculate cointegration
+    high_correlation_list = []
     for j in range(len(data_list)):
         if stock_id != j:
-            coint=ts.coint(data_list[stock_id][:, 3], data_list[j][:, 3])[1] 
+            # Calculate the p-value for cointegration test
+            coint = ts.coint(data_list[stock_id][:, 3], data_list[j][:, 3])[1] 
             if coint <= 0.1:
                 high_correlation_list.append(j)
             
     return data_list, high_correlation_list
 
+# Function to transform data into sequential samples with specified time steps and gaps using cointegrated stocks
 def toSequential_V2(stock_id, name_list, timeStep=24, gap=12, start="2017-01-01", 
                  end="2020-01-01", use_external_list=False, external_list=[]):
-    data_list, hcl=get_data_set_V2(stock_id, name_list, start=start, end=end) 
-    if (use_external_list):
-      hcl=external_list
+    # Retrieve data set and high correlation list
+    data_list, hcl = get_data_set_V2(stock_id, name_list, start=start, end=end) 
+    if use_external_list:
+        hcl = external_list
       
-    #append coint features to the end
-    avg_features=np.zeros((data_list[stock_id].shape[0], data_list[stock_id].shape[1]-4))
+    # Calculate the average features of cointegrated stocks and append to the main dataset
+    avg_features = np.zeros((data_list[stock_id].shape[0], data_list[stock_id].shape[1] - 4))
     for k in hcl:
-        feature=data_list[k][:, 4:]
-        avg_features+=(feature-feature.mean(axis=0, keepdims=True))/(feature.std(axis=0, keepdims=True))
-    #append to the end
-    stkData=np.concatenate([data_list[stock_id], avg_features], axis=1)
+        feature = data_list[k][:, 4:]
+        avg_features += (feature - feature.mean(axis=0, keepdims=True)) / (feature.std(axis=0, keepdims=True))
+    stkData = np.concatenate([data_list[stock_id], avg_features], axis=1)
 
-    #closing: from id=0 to last
-    closing=stkData[:, 3]
-    #data from id=0 to second to last
-    data=stkData[:-1]
-    #calculating number of available sequential samples
-    data_length=len(data)
-    count=(data_length-timeStep)//gap+1
-    stockSeq=[]
-    labelSeq=[]
-    diffSeq=[]
-    realDiffSeq=[]
+    # Extract the closing prices from the dataset
+    closing = stkData[:, 3]
+    # Extract all data points except for the last one for processing
+    data = stkData[:-1]
+    # Calculate the number of available sequential samples
+    data_length = len(data)
+    count = (data_length - timeStep) // gap + 1
+    stockSeq = []
+    labelSeq = []
+    diffSeq = []
+    realDiffSeq = []
     for i in range(count):
-        #segData dims: [timestep, feature count]
-        segData=data[gap*i:gap*i+timeStep]
-        segClosing=closing[gap*i:gap*i+timeStep+1]
-        #segDiff=diff[gap*i:gap*i+timeStep]
-        #normalization
-        segDataNorm=np.nan_to_num((segData-segData.mean(axis=0, keepdims=True))/segData.std(axis=0, keepdims=True))
-        segClosingNorm=(segClosing-segClosing.mean())/segClosing.std()
-        #segDiff=(segDiff-segDiff.mean())/segDiff.std()
+        # Extract the segment of data for the current time step
+        segData = data[gap * i : gap * i + timeStep]
+        segClosing = closing[gap * i : gap * i + timeStep + 1]
+        # Normalization of the segment data
+        segDataNorm = np.nan_to_num((segData - segData.mean(axis=0, keepdims=True)) / segData.std(axis=0, keepdims=True))
+        segClosingNorm = (segClosing - segClosing.mean()) / segClosing.std()
         
         stockSeq.append(segDataNorm)
         labelSeq.append(segClosingNorm[1:])
-        diffSeq.append(segClosingNorm[1:]-segClosingNorm[:-1])
-        realDiffSeq.append(segClosing[1:]-segClosing[:-1])
-    stockSeq=np.array(stockSeq)
-    labelSeq=np.array(labelSeq)
-    diffSeq=np.array(diffSeq)
-    realDiffSeq=np.array(realDiffSeq)
+        diffSeq.append(segClosingNorm[1:] - segClosingNorm[:-1])
+        realDiffSeq.append(segClosing[1:] - segClosing[:-1])
+    
+    # Convert lists to numpy arrays for efficient computation
+    stockSeq = np.array(stockSeq)
+    labelSeq = np.array(labelSeq)
+    diffSeq = np.array(diffSeq)
+    realDiffSeq = np.array(realDiffSeq)
     return (stockSeq.astype('float32'), labelSeq.astype('float32'),
     diffSeq.astype('float32'), realDiffSeq.astype('float32'), hcl)
