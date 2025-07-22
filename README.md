@@ -93,7 +93,7 @@ Critically, this loss is gleaned at time $t$ whereas the rest of the model recie
 We hope to see a correlation between confusion at time $t$ and the loss at time $t+1$.
 If this is the case, then confusion serves as an indicator for when the model is liable to lose money.
 
-![confusion plot](diagrams/cof_confusion.png)
+![confusion plot](diagrams/COO_conf_output.png)
 
 The above is a demonstatration of TFJ-DRL (top) and my addition (below). 
 At a given timestep, the autoencoder generates a loss score from encoding and decoding the hidden state vector. 
